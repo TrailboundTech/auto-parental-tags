@@ -68,9 +68,26 @@ public class OpenAiService : IAiService, IDisposable
     {
         if (!string.IsNullOrEmpty(endpoint))
         {
-            // Ensure endpoint ends with proper path
-            _endpoint = endpoint.TrimEnd('/');
-            if (!_endpoint.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase))
+            // Accept a server base URL, a /v1 base URL, or a complete
+            // chat-completions endpoint.
+            _endpoint = endpoint.Trim().TrimEnd('/');
+
+            if (_endpoint.EndsWith(
+                    "/v1/chat/completions",
+                    StringComparison.OrdinalIgnoreCase)
+                || _endpoint.EndsWith(
+                    "/chat/completions",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                // Complete endpoint was supplied.
+            }
+            else if (_endpoint.EndsWith(
+                         "/v1",
+                         StringComparison.OrdinalIgnoreCase))
+            {
+                _endpoint += "/chat/completions";
+            }
+            else
             {
                 _endpoint += "/v1/chat/completions";
             }
@@ -247,7 +264,10 @@ Respond with just one word: kids, teens, or adults";
         try
         {
             // Build the models endpoint from the chat endpoint
-            var modelsEndpoint = _endpoint.Replace("/chat/completions", "/models", StringComparison.Ordinal);
+            var modelsEndpoint = _endpoint.Replace(
+                "/chat/completions",
+                "/models",
+                StringComparison.OrdinalIgnoreCase);
 
             using var request = new HttpRequestMessage(HttpMethod.Get, modelsEndpoint);
 
