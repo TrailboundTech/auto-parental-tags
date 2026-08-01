@@ -23,6 +23,26 @@ public class OpenAiService : IAiService, IDisposable
             "adults"
         };
 
+    private static readonly char[] AudienceResponseSeparators =
+    {
+        ' ',
+        '\t',
+        '\r',
+        '\n',
+        '.',
+        ',',
+        ':',
+        ';',
+        '-',
+        '_',
+        '/',
+        '\\',
+        '(',
+        ')',
+        '[',
+        ']'
+    };
+
     private readonly ILogger<OpenAiService> _logger;
     private readonly HttpClient _httpClient;
 
@@ -431,28 +451,9 @@ adults";
             return normalized;
         }
 
-        var words = normalized
-            .Split(
-                new[]
-                {
-                    ' ',
-                    '\t',
-                    '\r',
-                    '\n',
-                    '.',
-                    ',',
-                    ':',
-                    ';',
-                    '-',
-                    '_',
-                    '/',
-                    '\\',
-                    '(',
-                    ')',
-                    '[',
-                    ']'
-                },
-                StringSplitOptions.RemoveEmptyEntries);
+        var words = normalized.Split(
+            AudienceResponseSeparators,
+            StringSplitOptions.RemoveEmptyEntries);
 
         if (words.Contains(
                 "kids",

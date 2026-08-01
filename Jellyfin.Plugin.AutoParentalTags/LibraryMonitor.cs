@@ -340,6 +340,7 @@ public class LibraryMonitor : ILibraryPostScanTask
 
         var audienceTag =
             await aiService.DetermineTargetAudienceAsync(
+                    mediaType,
                     title,
                     year,
                     overview,

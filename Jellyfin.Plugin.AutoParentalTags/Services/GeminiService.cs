@@ -23,6 +23,26 @@ public class GeminiService : IAiService, IDisposable
             "adults"
         };
 
+    private static readonly char[] AudienceResponseSeparators =
+    {
+        ' ',
+        '\t',
+        '\r',
+        '\n',
+        '.',
+        ',',
+        ':',
+        ';',
+        '-',
+        '_',
+        '/',
+        '\\',
+        '(',
+        ')',
+        '[',
+        ']'
+    };
+
     private readonly ILogger<GeminiService> _logger;
     private readonly HttpClient _httpClient;
 
@@ -409,25 +429,7 @@ adults";
         }
 
         var words = normalized.Split(
-            new[]
-            {
-                ' ',
-                '\t',
-                '\r',
-                '\n',
-                '.',
-                ',',
-                ':',
-                ';',
-                '-',
-                '_',
-                '/',
-                '\\',
-                '(',
-                ')',
-                '[',
-                ']'
-            },
+            AudienceResponseSeparators,
             StringSplitOptions.RemoveEmptyEntries);
 
         if (words.Contains(
