@@ -139,8 +139,13 @@ public class OpenAiService : IAiService, IDisposable
                         content = prompt
                     }
                 },
-                temperature = 0.3,
-                max_tokens = 10
+                temperature = 0.1,
+                max_tokens = 64,
+                reasoning_effort = "none",
+                metadata = new Dictionary<string, string>
+                {
+                    ["enable_thinking"] = "false"
+                }
             };
 
             var jsonContent = JsonSerializer.Serialize(requestBody);
