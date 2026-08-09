@@ -230,7 +230,9 @@ public class LibraryMonitor : ILibraryPostScanTask
 
             // ILibraryPostScanTask runs after a normal Jellyfin library scan. Keep
             // this query lightweight by selecting only supported top-level media
-            // types, then remove duplicate Jellyfin item IDs before processing.
+            // types, then remove duplicate non-empty Jellyfin item IDs before
+            // processing. Items without an ID are preserved rather than collapsed.
+            var seenItemIds = new HashSet<Guid>();
             var items = _libraryManager
                 .GetItemList(
                     new InternalItemsQuery
@@ -240,8 +242,7 @@ public class LibraryMonitor : ILibraryPostScanTask
                         Recursive = true
                     })
                 .Where(item => item is Movie || item is Series)
-                .GroupBy(item => item.Id)
-                .Select(group => group.First())
+                .Where(item => item.Id == Guid.Empty || seenItemIds.Add(item.Id))
                 .ToList();
 
             if (items.Count == 0)
