@@ -10,7 +10,7 @@
     <CollectCoverage>true</CollectCoverage>
     <CoverletOutput>../TestResults/coverage.info</CoverletOutput>
     <CoverletOutputFormat>lcov</CoverletOutputFormat>
-    <ExcludeByFile>**/Services/GeminiService.cs;**/Services/OpenAiService.cs</ExcludeByFile>
+    <ExcludeByFile>**/Services/GeminiService.cs,**/Services/OpenAiService.cs</ExcludeByFile>
     <Threshold>75</Threshold>
     <ThresholdType>line</ThresholdType>
   </PropertyGroup>
@@ -37,9 +37,9 @@
     <ProjectReference Include="..\Jellyfin.Plugin.AutoParentalTags\Jellyfin.Plugin.AutoParentalTags.csproj" />
   </ItemGroup>
 
-    <ItemGroup>
-      <PackageReference Include="Jellyfin.Controller" Version="10.11.11" />
-      <PackageReference Include="Jellyfin.Model" Version="10.11.11" />
-    </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Jellyfin.Controller" Version="10.11.11" />
+    <PackageReference Include="Jellyfin.Model" Version="10.11.11" />
+  </ItemGroup>
 
 </Project>
