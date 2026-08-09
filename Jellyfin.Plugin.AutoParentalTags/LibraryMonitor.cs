@@ -32,7 +32,7 @@ public class LibraryMonitor : ILibraryPostScanTask
     private readonly ILogger<LibraryMonitor> _logger;
     private readonly AiServiceFactory _aiServiceFactory;
     private readonly TimeSpan _processingDelay;
-    private readonly SemaphoreSlim _runLock = new(1, 1);
+    private int _isRunning;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LibraryMonitor"/> class.
@@ -139,9 +139,9 @@ public class LibraryMonitor : ILibraryPostScanTask
     {
         return RunCoreAsync(
             progress,
-            cancellationToken,
             requireLibraryScanSetting: true,
-            triggerName: "library scan");
+            triggerName: "library scan",
+            cancellationToken);
     }
 
     /// <summary>
@@ -157,26 +157,22 @@ public class LibraryMonitor : ILibraryPostScanTask
     {
         return RunCoreAsync(
             progress,
-            cancellationToken,
             requireLibraryScanSetting: false,
-            triggerName: "manual task");
+            triggerName: "manual task",
+            cancellationToken);
     }
 
     private async Task RunCoreAsync(
         IProgress<double> progress,
-        CancellationToken cancellationToken,
         bool requireLibraryScanSetting,
-        string triggerName)
+        string triggerName,
+        CancellationToken cancellationToken)
     {
-        var lockTaken = false;
+        var runAcquired = Interlocked.CompareExchange(ref _isRunning, 1, 0) == 0;
 
         try
         {
-            lockTaken = await _runLock
-                .WaitAsync(0, cancellationToken)
-                .ConfigureAwait(false);
-
-            if (!lockTaken)
+            if (!runAcquired)
             {
                 _logger.LogInformation(
                     "Auto Parental Tags is already running; skipping overlapping {Trigger} invocation",
@@ -361,9 +357,9 @@ public class LibraryMonitor : ILibraryPostScanTask
         }
         finally
         {
-            if (lockTaken)
+            if (runAcquired)
             {
-                _runLock.Release();
+                Interlocked.Exchange(ref _isRunning, 0);
             }
         }
     }
