@@ -32,6 +32,7 @@ public class LibraryMonitor : ILibraryPostScanTask
     private readonly ILogger<LibraryMonitor> _logger;
     private readonly AiServiceFactory _aiServiceFactory;
     private readonly TimeSpan _processingDelay;
+    private readonly SemaphoreSlim _runLock = new(1, 1);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LibraryMonitor"/> class.
@@ -46,7 +47,7 @@ public class LibraryMonitor : ILibraryPostScanTask
     /// Instance of the <see cref="AiServiceFactory"/> class.
     /// </param>
     /// <param name="processingDelay">
-    /// Optional delay between processing items.
+    /// Optional delay between AI requests.
     /// </param>
     public LibraryMonitor(
         ILibraryManager libraryManager,
@@ -132,106 +133,175 @@ public class LibraryMonitor : ILibraryPostScanTask
     }
 
     /// <inheritdoc />
-    public async Task Run(
+    public Task Run(
         IProgress<double> progress,
         CancellationToken cancellationToken)
     {
-        PluginConfiguration? config;
+        return RunCoreAsync(
+            progress,
+            cancellationToken,
+            requireLibraryScanSetting: true,
+            triggerName: "library scan");
+    }
+
+    /// <summary>
+    /// Runs audience classification from the manual Jellyfin scheduled task.
+    /// Manual runs are independent of the ProcessOnLibraryScan setting.
+    /// </summary>
+    /// <param name="progress">Progress reporter.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public Task RunManualAsync(
+        IProgress<double> progress,
+        CancellationToken cancellationToken)
+    {
+        return RunCoreAsync(
+            progress,
+            cancellationToken,
+            requireLibraryScanSetting: false,
+            triggerName: "manual task");
+    }
+
+    private async Task RunCoreAsync(
+        IProgress<double> progress,
+        CancellationToken cancellationToken,
+        bool requireLibraryScanSetting,
+        string triggerName)
+    {
+        var lockTaken = false;
 
         try
         {
-            config = Plugin.Instance?.Configuration;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Unable to load plugin configuration");
+            lockTaken = await _runLock
+                .WaitAsync(0, cancellationToken)
+                .ConfigureAwait(false);
 
-            progress?.Report(100);
-            return;
-        }
+            if (!lockTaken)
+            {
+                _logger.LogInformation(
+                    "Auto Parental Tags is already running; skipping overlapping {Trigger} invocation",
+                    triggerName);
 
-        if (config == null
-            || !config.EnableAutoTagging
-            || !config.ProcessOnLibraryScan)
-        {
-            _logger.LogDebug(
-                "Auto-tagging is disabled or not configured to run on library scan");
+                progress?.Report(100);
+                return;
+            }
 
-            progress?.Report(100);
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(config.ApiKey))
-        {
-            _logger.LogWarning(
-                "AI API key is not configured");
-
-            progress?.Report(100);
-            return;
-        }
-
-        using var aiService =
-            _aiServiceFactory.CreateService(config);
-
-        var includedItemTypes =
-            GetIncludedItemTypes(config.ScanMode);
-
-        var items = _libraryManager
-            .GetItemList(
-                new InternalItemsQuery
-                {
-                    IncludeItemTypes = includedItemTypes,
-                    IsVirtualItem = false,
-                    Recursive = true
-                })
-            .Where(item => item is Movie || item is Series)
-            .ToList();
-
-        _logger.LogInformation(
-            "Found {Count} items to process using scan mode {ScanMode}",
-            items.Count,
-            config.ScanMode);
-
-        if (items.Count == 0)
-        {
-            progress?.Report(100);
-
-            _logger.LogInformation(
-                "No matching movies or TV series were found");
-
-            return;
-        }
-
-        var completedCount = 0;
-        var taggedCount = 0;
-        var skippedCount = 0;
-        var failedCount = 0;
-        var totalCount = items.Count;
-
-        foreach (var item in items)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var mediaType = GetMediaTypeLabel(item);
-            var existingAudienceTags =
-                GetExistingAudienceTags(item);
+            PluginConfiguration? config;
 
             try
             {
-                if (config.SkipPreviouslyTagged
-                    && existingAudienceTags.Count > 0)
-                {
-                    skippedCount++;
+                config = Plugin.Instance?.Configuration;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Unable to load plugin configuration");
 
-                    _logger.LogInformation(
-                        "Skipping previously classified {MediaType} '{Title}' with tag(s): {Tags}",
-                        mediaType,
-                        SanitizeForLog(item.Name),
-                        string.Join(", ", existingAudienceTags));
-                }
-                else
+                progress?.Report(100);
+                return;
+            }
+
+            if (config == null || !config.EnableAutoTagging)
+            {
+                _logger.LogDebug(
+                    "Auto-tagging is disabled");
+
+                progress?.Report(100);
+                return;
+            }
+
+            if (requireLibraryScanSetting && !config.ProcessOnLibraryScan)
+            {
+                _logger.LogDebug(
+                    "Auto-tagging is not configured to run after a library scan");
+
+                progress?.Report(100);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(config.ApiKey))
+            {
+                _logger.LogWarning(
+                    "AI API key is not configured");
+
+                progress?.Report(100);
+                return;
+            }
+
+            var includedItemTypes =
+                GetIncludedItemTypes(config.ScanMode);
+
+            // ILibraryPostScanTask runs after a normal Jellyfin library scan. Keep
+            // this query lightweight by selecting only supported top-level media
+            // types, then remove duplicate Jellyfin item IDs before processing.
+            var items = _libraryManager
+                .GetItemList(
+                    new InternalItemsQuery
+                    {
+                        IncludeItemTypes = includedItemTypes,
+                        IsVirtualItem = false,
+                        Recursive = true
+                    })
+                .Where(item => item is Movie || item is Series)
+                .GroupBy(item => item.Id)
+                .Select(group => group.First())
+                .ToList();
+
+            if (items.Count == 0)
+            {
+                progress?.Report(100);
+
+                _logger.LogInformation(
+                    "No matching movies or TV series were found for {Trigger}",
+                    triggerName);
+
+                return;
+            }
+
+            // When existing tags are not meant to be overwritten, eliminate
+            // already classified items before creating the AI service or entering
+            // the rate-limited loop. Previously these items were logged and then
+            // delayed for one second each, turning ordinary Jellyfin scans into
+            // long-running full-library jobs.
+            var shouldSkipExisting =
+                config.SkipPreviouslyTagged
+                || !config.OverwriteExistingTags;
+
+            var candidates = shouldSkipExisting
+                ? items
+                    .Where(item => GetExistingAudienceTags(item).Count == 0)
+                    .ToList()
+                : items;
+
+            var skippedCount = items.Count - candidates.Count;
+
+            _logger.LogInformation(
+                "Auto Parental Tags {Trigger}: examined {Examined} items, {Candidates} require classification, {Skipped} already classified items skipped",
+                triggerName,
+                items.Count,
+                candidates.Count,
+                skippedCount);
+
+            if (candidates.Count == 0)
+            {
+                progress?.Report(100);
+                return;
+            }
+
+            using var aiService =
+                _aiServiceFactory.CreateService(config);
+
+            var completedCount = 0;
+            var taggedCount = 0;
+            var failedCount = 0;
+            var totalCandidates = candidates.Count;
+
+            foreach (var item in candidates)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                try
                 {
                     var wasTagged = await ProcessItemAsync(
                             item,
@@ -249,41 +319,53 @@ public class LibraryMonitor : ILibraryPostScanTask
                         skippedCount++;
                     }
                 }
+                catch (Exception ex)
+                {
+                    failedCount++;
+
+                    _logger.LogError(
+                        ex,
+                        "Error processing {MediaType} '{Title}': {Message}",
+                        GetMediaTypeLabel(item),
+                        SanitizeForLog(item.Name),
+                        ex.Message);
+                }
+
+                completedCount++;
+
+                progress?.Report(
+                    (double)completedCount / totalCandidates * 100);
+
+                // The delay exists only to rate-limit actual AI requests. Do not
+                // delay for items that were filtered out as already classified.
+                if (completedCount < totalCandidates
+                    && _processingDelay > TimeSpan.Zero)
+                {
+                    await Task.Delay(
+                            _processingDelay,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
             }
-            catch (Exception ex)
+
+            _logger.LogInformation(
+                "Completed audience classification for {Trigger}. Examined: {Examined}, AI candidates: {Candidates}, tagged: {Tagged}, skipped: {Skipped}, failed: {Failed}",
+                triggerName,
+                items.Count,
+                totalCandidates,
+                taggedCount,
+                skippedCount,
+                failedCount);
+
+            progress?.Report(100);
+        }
+        finally
+        {
+            if (lockTaken)
             {
-                failedCount++;
-
-                _logger.LogError(
-                    ex,
-                    "Error processing {MediaType} '{Title}': {Message}",
-                    mediaType,
-                    SanitizeForLog(item.Name),
-                    ex.Message);
-            }
-
-            completedCount++;
-
-            progress?.Report(
-                (double)completedCount / totalCount * 100);
-
-            if (completedCount < totalCount)
-            {
-                await Task.Delay(
-                        _processingDelay,
-                        cancellationToken)
-                    .ConfigureAwait(false);
+                _runLock.Release();
             }
         }
-
-        _logger.LogInformation(
-            "Completed audience classification. Examined: {Examined}, tagged: {Tagged}, skipped: {Skipped}, failed: {Failed}",
-            completedCount,
-            taggedCount,
-            skippedCount,
-            failedCount);
-
-        progress?.Report(100);
     }
 
     /// <summary>
@@ -323,7 +405,7 @@ public class LibraryMonitor : ILibraryPostScanTask
         if (existingAudienceTags.Count > 0
             && !overwriteExisting)
         {
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "{MediaType} '{Title}' already has audience tag(s): {Tags}",
                 mediaType,
                 SanitizeForLog(item.Name),
