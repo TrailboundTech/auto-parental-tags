@@ -96,6 +96,18 @@ The current plugin build is compiled and tested against Jellyfin 10.11.11. Binar
 
 ## Installation
 
+### From the Jellyfin Plugin Catalog
+
+1. In Jellyfin, open **Dashboard → Plugins → Repositories**.
+2. Add a repository named **Auto Parental Tags** with this URL:
+
+   ```text
+   https://raw.githubusercontent.com/TrailboundTech/auto-parental-tags/master/repository.json
+   ```
+
+3. Open **Catalog**, select **Auto Parental Tags**, and install it.
+4. Restart Jellyfin, then configure the plugin under **Dashboard → Plugins**.
+
 ### From a Release
 
 1. Download the latest package from the [Releases page](https://github.com/TrailboundTech/auto-parental-tags/releases).
@@ -116,7 +128,7 @@ Common plugin locations include:
 A typical Docker installation might use:
 
 ```text
-/config/plugins/Auto Parental Tags_1.0.0.0/
+/config/plugins/Auto Parental Tags_1.0.2.0/
 ├── Jellyfin.Plugin.AutoParentalTags.dll
 └── Jellyfin.Plugin.AutoParentalTags.deps.json
 ```
