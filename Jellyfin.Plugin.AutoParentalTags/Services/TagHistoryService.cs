@@ -65,11 +65,20 @@ public sealed class TagHistoryService : IDisposable
     /// <returns>A task representing the write operation.</returns>
     public async Task RecordAsync(TagHistoryEntry entry, CancellationToken cancellationToken = default)
     {
+        await RecordManyAsync(new[] { entry }, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Records multiple tag changes in one durable write.</summary>
+    /// <param name="newEntries">The tag changes to record.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the write operation.</returns>
+    public async Task RecordManyAsync(IEnumerable<TagHistoryEntry> newEntries, CancellationToken cancellationToken = default)
+    {
         await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             var entries = await ReadEntriesUnsafeAsync(cancellationToken).ConfigureAwait(false);
-            entries.Add(entry);
+            entries.AddRange(newEntries);
             await WriteEntriesUnsafeAsync(entries, cancellationToken).ConfigureAwait(false);
         }
         finally

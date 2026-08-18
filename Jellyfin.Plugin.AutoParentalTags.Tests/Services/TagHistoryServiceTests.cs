@@ -59,6 +59,20 @@ public sealed class TagHistoryServiceTests : IDisposable
         Assert.False(await service.HasManualOverrideAsync(itemId));
     }
 
+    /// <summary>Verifies that batch imports persist in one operation.</summary>
+    [Fact]
+    public async Task RecordManyAsync_ShouldPersistAllEntries()
+    {
+        using var service = CreateService();
+        await service.RecordManyAsync(new[]
+        {
+            CreateEntry(Guid.NewGuid(), "kids", false, DateTimeOffset.UtcNow),
+            CreateEntry(Guid.NewGuid(), "adults", false, DateTimeOffset.UtcNow)
+        });
+
+        Assert.Equal(2, (await service.GetEntriesAsync()).Count);
+    }
+
     /// <summary>Removes temporary test data.</summary>
     public void Dispose()
     {

@@ -261,6 +261,45 @@ public class LibraryMonitor : ILibraryPostScanTask
                 return;
             }
 
+            IReadOnlyList<TagHistoryEntry>? historyEntries = null;
+            if (_tagHistoryService is not null)
+            {
+                historyEntries = await _tagHistoryService
+                    .GetEntriesAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                var recordedItemIds = historyEntries
+                    .Select(entry => entry.ItemId)
+                    .ToHashSet();
+                var importedEntries = items
+                    .Where(item => item.Id != Guid.Empty && !recordedItemIds.Contains(item.Id))
+                    .Select(item => new
+                    {
+                        Item = item,
+                        Tag = GetExistingAudienceTags(item).FirstOrDefault()
+                    })
+                    .Where(value => value.Tag is not null)
+                    .Select(value => new TagHistoryEntry
+                    {
+                        ItemId = value.Item.Id,
+                        Title = value.Item.Name,
+                        MediaType = GetMediaTypeLabel(value.Item),
+                        ProductionYear = value.Item.ProductionYear,
+                        NewTag = value.Tag!,
+                        IsManualOverride = false,
+                        Source = "Existing Jellyfin tag",
+                        TimestampUtc = DateTimeOffset.UtcNow
+                    })
+                    .ToList();
+
+                if (importedEntries.Count > 0)
+                {
+                    await _tagHistoryService
+                        .RecordManyAsync(importedEntries, cancellationToken)
+                        .ConfigureAwait(false);
+                    historyEntries = historyEntries.Concat(importedEntries).ToList();
+                }
+            }
+
             // When existing tags are not meant to be overwritten, eliminate
             // already classified items before creating the AI service or entering
             // the rate-limited loop. Previously these items were logged and then
@@ -278,9 +317,10 @@ public class LibraryMonitor : ILibraryPostScanTask
 
             if (_tagHistoryService is not null)
             {
-                var protectedItemIds = (await _tagHistoryService
-                        .GetEntriesAsync(cancellationToken)
-                        .ConfigureAwait(false))
+                var protectedItemIds = (historyEntries
+                        ?? await _tagHistoryService
+                            .GetEntriesAsync(cancellationToken)
+                            .ConfigureAwait(false))
                     .GroupBy(entry => entry.ItemId)
                     .Where(group => group.First().IsManualOverride)
                     .Select(group => group.Key)
