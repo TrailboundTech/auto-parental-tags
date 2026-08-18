@@ -39,8 +39,19 @@ public sealed class TagHistoryController : ControllerBase
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The recorded tag changes.</returns>
     [HttpGet]
-    public Task<IReadOnlyList<TagHistoryEntry>> GetHistory(CancellationToken cancellationToken)
-        => _historyService.GetEntriesAsync(cancellationToken);
+    public async Task<IReadOnlyList<TagHistoryEntry>> GetHistory(CancellationToken cancellationToken)
+    {
+        var entries = await _historyService.GetEntriesAsync(cancellationToken).ConfigureAwait(false);
+        foreach (var entry in entries.Where(entry => string.IsNullOrWhiteSpace(entry.LibraryName)))
+        {
+            var item = _libraryManager.GetItemById(entry.ItemId);
+            entry.LibraryName = item is null
+                ? "Unavailable"
+                : GetLibraryName(item);
+        }
+
+        return entries;
+    }
 
     /// <summary>Applies an administrator-selected audience tag.</summary>
     /// <param name="request">Requested item and audience tag.</param>
@@ -79,6 +90,7 @@ public sealed class TagHistoryController : ControllerBase
                 ItemId = item.Id,
                 Title = item.Name,
                 MediaType = item.GetType().Name,
+                LibraryName = GetLibraryName(item),
                 ProductionYear = item.ProductionYear,
                 PreviousTag = previousTag,
                 NewTag = newTag,
@@ -89,5 +101,11 @@ public sealed class TagHistoryController : ControllerBase
             cancellationToken).ConfigureAwait(false);
 
         return NoContent();
+    }
+
+    private string GetLibraryName(MediaBrowser.Controller.Entities.BaseItem item)
+    {
+        return _libraryManager.GetCollectionFolders(item)?.FirstOrDefault()?.Name
+            ?? "Unknown library";
     }
 }

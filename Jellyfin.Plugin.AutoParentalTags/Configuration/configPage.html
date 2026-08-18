@@ -250,22 +250,11 @@
                     </div>
                 </form>
 
-                <div style="margin-top: 3em;">
-                    <h2>Tag History and Overrides</h2>
-                    <div class="fieldDescription" style="margin-bottom: 1em;">
-                        AI classifications and administrator corrections are
-                        recorded here. Manual overrides are protected from
-                        later automatic scans.
-                    </div>
-                    <button
-                        id="RefreshTagHistory"
-                        is="emby-button"
-                        type="button"
+                <div style="margin-top: 2em;">
+                    <button id="OpenTagHistory" is="emby-button" type="button"
                         class="raised emby-button">
-                        Refresh History
+                        Open Tag History and Overrides
                     </button>
-                    <div id="TagHistoryStatus" class="fieldDescription"></div>
-                    <div id="TagHistoryTable" style="overflow-x: auto;"></div>
                 </div>
             </div>
         </div>
@@ -277,6 +266,7 @@
 
             var currentConfig = null;
 
+            /* History is rendered on its dedicated plugin page.
             function formatHistoryDate(value) {
                 var date = new Date(value);
                 return isNaN(date.getTime()) ? value : date.toLocaleString();
@@ -392,6 +382,7 @@
                 }
             }
 
+            */
             function updateFieldVisibility() {
                 var provider =
                     document.querySelector('#Provider').value;
@@ -597,8 +588,12 @@
                 );
 
             document
-                .querySelector('#RefreshTagHistory')
-                .addEventListener('click', loadTagHistory);
+                .querySelector('#OpenTagHistory')
+                .addEventListener('click', function () {
+                    Dashboard.navigate(
+                        'configurationpage?name=AutoParentalTagsHistory'
+                    );
+                });
 
             document
                 .querySelector(
@@ -699,8 +694,6 @@
                                         option
                                     );
                                 }
-
-                                loadTagHistory();
 
                                 fetchModels().finally(
                                     function () {

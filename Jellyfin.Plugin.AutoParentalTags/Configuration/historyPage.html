@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auto Parental Tags History</title>
+</head>
+<body>
+    <div id="AutoParentalTagsHistoryPage" data-role="page"
+        class="page type-interior pluginConfigurationPage">
+        <div data-role="content">
+            <div class="content-primary">
+                <h1>Auto Parental Tags History</h1>
+                <p class="fieldDescription">
+                    Review AI classifications and administrator corrections.
+                    Manual overrides are protected from future automatic scans.
+                </p>
+
+                <div style="display:flex; gap:1em; flex-wrap:wrap; margin:1.5em 0;">
+                    <div class="selectContainer" style="min-width:16em;">
+                        <label class="selectLabel" for="HistoryLibrary">Library</label>
+                        <select id="HistoryLibrary" is="emby-select"
+                            class="emby-select-withcolor emby-select">
+                            <option value="">All libraries</option>
+                        </select>
+                    </div>
+                    <div class="inputContainer" style="min-width:18em; flex:1;">
+                        <label class="inputLabel inputLabelUnfocused" for="HistorySearch">Search</label>
+                        <input id="HistorySearch" type="text" is="emby-input"
+                            placeholder="Title, tag, source, or model" />
+                    </div>
+                    <button id="RefreshHistory" is="emby-button" type="button"
+                        class="raised emby-button" style="align-self:end;">Refresh</button>
+                    <button id="BackToSettings" is="emby-button" type="button"
+                        class="raised emby-button" style="align-self:end;">Settings</button>
+                </div>
+
+                <div id="HistoryStatus" class="fieldDescription"></div>
+                <div style="overflow-x:auto; margin-top:1em;">
+                    <table style="width:100%; border-collapse:collapse;">
+                        <thead>
+                            <tr>
+                                <th>When</th><th>Library</th><th>Content</th>
+                                <th>Tag</th><th>Source</th><th>Override</th>
+                            </tr>
+                        </thead>
+                        <tbody id="HistoryRows"></tbody>
+                    </table>
+                </div>
+                <div style="display:flex; gap:1em; align-items:center; margin-top:1em;">
+                    <button id="HistoryPrevious" is="emby-button" type="button"
+                        class="raised emby-button">Previous</button>
+                    <span id="HistoryPageStatus"></span>
+                    <button id="HistoryNext" is="emby-button" type="button"
+                        class="raised emby-button">Next</button>
+                </div>
+            </div>
+        </div>
+
+        <script type="text/javascript">
+            (function () {
+                var allEntries = [];
+                var currentPage = 0;
+                var pageSize = 100;
+
+                function value(entry, pascal, camel, fallback) {
+                    if (entry[pascal] !== undefined && entry[pascal] !== null) {
+                        return entry[pascal];
+                    }
+                    if (entry[camel] !== undefined && entry[camel] !== null) {
+                        return entry[camel];
+                    }
+                    return fallback;
+                }
+
+                function filteredEntries() {
+                    var library = document.querySelector('#HistoryLibrary').value;
+                    var search = document.querySelector('#HistorySearch').value
+                        .trim().toLowerCase();
+                    return allEntries.filter(function (entry) {
+                        var entryLibrary = value(entry, 'LibraryName', 'libraryName', 'Unknown library');
+                        if (library && entryLibrary !== library) {
+                            return false;
+                        }
+                        if (!search) {
+                            return true;
+                        }
+                        return [
+                            value(entry, 'Title', 'title', ''),
+                            value(entry, 'NewTag', 'newTag', ''),
+                            value(entry, 'Source', 'source', ''),
+                            value(entry, 'Model', 'model', '')
+                        ].join(' ').toLowerCase().includes(search);
+                    });
+                }
+
+                function addCell(row, textValue) {
+                    var cell = document.createElement('td');
+                    cell.textContent = textValue;
+                    cell.style.padding = '0.65em';
+                    cell.style.borderBottom = '1px solid rgba(255,255,255,.12)';
+                    row.appendChild(cell);
+                }
+
+                function render() {
+                    var entries = filteredEntries();
+                    var pageCount = Math.max(1, Math.ceil(entries.length / pageSize));
+                    currentPage = Math.min(currentPage, pageCount - 1);
+                    var visible = entries.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+                    var rows = document.querySelector('#HistoryRows');
+                    rows.innerHTML = '';
+
+                    visible.forEach(function (entry) {
+                        var row = document.createElement('tr');
+                        var timestamp = value(entry, 'TimestampUtc', 'timestampUtc', '');
+                        var date = new Date(timestamp);
+                        var title = value(entry, 'Title', 'title', 'Unknown item');
+                        var year = value(entry, 'ProductionYear', 'productionYear', '');
+                        var previousTag = value(entry, 'PreviousTag', 'previousTag', '');
+                        var newTag = value(entry, 'NewTag', 'newTag', '');
+                        var manual = value(entry, 'IsManualOverride', 'isManualOverride', false);
+                        var source = value(entry, 'Source', 'source', 'AI');
+                        var model = value(entry, 'Model', 'model', '');
+                        var itemId = value(entry, 'ItemId', 'itemId', '');
+
+                        addCell(row, isNaN(date.getTime()) ? timestamp : date.toLocaleString());
+                        addCell(row, value(entry, 'LibraryName', 'libraryName', 'Unknown library'));
+                        addCell(row, title + (year ? ' (' + year + ')' : ''));
+                        addCell(row, (previousTag ? previousTag + ' → ' : '') + newTag);
+                        addCell(row, manual ? 'Manual override' : source + (model ? ' / ' + model : ''));
+
+                        var actionCell = document.createElement('td');
+                        var select = document.createElement('select');
+                        ['kids', 'teens', 'adults'].forEach(function (tag) {
+                            var option = document.createElement('option');
+                            option.value = tag;
+                            option.textContent = tag;
+                            option.selected = tag === newTag;
+                            select.appendChild(option);
+                        });
+                        var button = document.createElement('button');
+                        button.type = 'button';
+                        button.textContent = 'Apply';
+                        button.className = 'raised emby-button';
+                        button.addEventListener('click', function () {
+                            applyOverride(itemId, select.value);
+                        });
+                        actionCell.appendChild(select);
+                        actionCell.appendChild(button);
+                        row.appendChild(actionCell);
+                        rows.appendChild(row);
+                    });
+
+                    document.querySelector('#HistoryStatus').textContent =
+                        entries.length + ' matching change(s).';
+                    document.querySelector('#HistoryPageStatus').textContent =
+                        'Page ' + (currentPage + 1) + ' of ' + pageCount;
+                    document.querySelector('#HistoryPrevious').disabled = currentPage === 0;
+                    document.querySelector('#HistoryNext').disabled = currentPage >= pageCount - 1;
+                }
+
+                function populateLibraries() {
+                    var select = document.querySelector('#HistoryLibrary');
+                    var selected = select.value;
+                    var libraries = Array.from(new Set(allEntries.map(function (entry) {
+                        return value(entry, 'LibraryName', 'libraryName', 'Unknown library');
+                    }))).sort();
+                    select.innerHTML = '<option value="">All libraries</option>';
+                    libraries.forEach(function (library) {
+                        var option = document.createElement('option');
+                        option.value = library;
+                        option.textContent = library;
+                        option.selected = library === selected;
+                        select.appendChild(option);
+                    });
+                }
+
+                async function loadHistory() {
+                    Dashboard.showLoadingMsg();
+                    try {
+                        var response = await ApiClient.fetch({
+                            type: 'GET',
+                            url: ApiClient.getUrl('AutoParentalTags/History')
+                        });
+                        if (!response.ok) {
+                            throw new Error(await response.text());
+                        }
+                        allEntries = await response.json();
+                        currentPage = 0;
+                        populateLibraries();
+                        render();
+                    } catch (error) {
+                        document.querySelector('#HistoryStatus').textContent =
+                            'Unable to load history: ' + error.message;
+                    } finally {
+                        Dashboard.hideLoadingMsg();
+                    }
+                }
+
+                async function applyOverride(itemId, tag) {
+                    Dashboard.showLoadingMsg();
+                    try {
+                        var response = await ApiClient.fetch({
+                            type: 'POST',
+                            url: ApiClient.getUrl('AutoParentalTags/History/Override'),
+                            contentType: 'application/json',
+                            data: JSON.stringify({ itemId: itemId, tag: tag })
+                        });
+                        if (!response.ok) {
+                            throw new Error(await response.text());
+                        }
+                        await loadHistory();
+                    } catch (error) {
+                        document.querySelector('#HistoryStatus').textContent =
+                            'Override failed: ' + error.message;
+                        Dashboard.hideLoadingMsg();
+                    }
+                }
+
+                document.querySelector('#HistoryLibrary').addEventListener('change', function () {
+                    currentPage = 0;
+                    render();
+                });
+                document.querySelector('#HistorySearch').addEventListener('input', function () {
+                    currentPage = 0;
+                    render();
+                });
+                document.querySelector('#RefreshHistory').addEventListener('click', loadHistory);
+                document.querySelector('#BackToSettings').addEventListener('click', function () {
+                    Dashboard.navigate('configurationpage?name=Auto Parental Tags');
+                });
+                document.querySelector('#HistoryPrevious').addEventListener('click', function () {
+                    currentPage--;
+                    render();
+                });
+                document.querySelector('#HistoryNext').addEventListener('click', function () {
+                    currentPage++;
+                    render();
+                });
+                document.querySelector('#AutoParentalTagsHistoryPage')
+                    .addEventListener('pageshow', loadHistory);
+            }());
+        </script>
+    </div>
+</body>
+</html>

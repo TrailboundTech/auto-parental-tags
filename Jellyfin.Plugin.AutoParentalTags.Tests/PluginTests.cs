@@ -57,7 +57,7 @@ public class PluginTests
     }
 
     /// <summary>
-    /// Tests that GetPages returns correct configuration page.
+    /// Tests that GetPages returns the settings and history pages.
     /// </summary>
     [Fact]
     public void GetPages_ShouldReturnConfigurationPage()
@@ -74,9 +74,11 @@ public class PluginTests
         var pages = plugin.GetPages().ToList();
 
         // Assert
-        Assert.Single(pages);
+        Assert.Equal(2, pages.Count);
         Assert.Equal("Auto Parental Tags", pages[0].Name);
         Assert.Contains("Configuration.configPage.html", pages[0].EmbeddedResourcePath);
+        Assert.Equal("AutoParentalTagsHistory", pages[1].Name);
+        Assert.Contains("Configuration.historyPage.html", pages[1].EmbeddedResourcePath);
     }
 
     /// <summary>

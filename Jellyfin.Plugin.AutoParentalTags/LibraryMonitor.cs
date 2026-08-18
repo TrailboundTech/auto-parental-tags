@@ -283,6 +283,7 @@ public class LibraryMonitor : ILibraryPostScanTask
                         ItemId = value.Item.Id,
                         Title = value.Item.Name,
                         MediaType = GetMediaTypeLabel(value.Item),
+                        LibraryName = GetLibraryName(value.Item),
                         ProductionYear = value.Item.ProductionYear,
                         NewTag = value.Tag!,
                         IsManualOverride = false,
@@ -566,6 +567,7 @@ public class LibraryMonitor : ILibraryPostScanTask
                         ItemId = item.Id,
                         Title = title,
                         MediaType = mediaType,
+                        LibraryName = GetLibraryName(item),
                         ProductionYear = year,
                         PreviousTag = existingAudienceTags.FirstOrDefault(),
                         NewTag = audienceTag,
@@ -640,5 +642,11 @@ public class LibraryMonitor : ILibraryPostScanTask
                 overwriteExisting,
                 cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    private string GetLibraryName(BaseItem item)
+    {
+        return _libraryManager.GetCollectionFolders(item)?.FirstOrDefault()?.Name
+            ?? "Unknown library";
     }
 }

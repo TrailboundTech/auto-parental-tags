@@ -16,6 +16,9 @@ public sealed class TagHistoryEntry
     /// <summary>Gets or sets the media type.</summary>
     public string MediaType { get; set; } = string.Empty;
 
+    /// <summary>Gets or sets the Jellyfin library name.</summary>
+    public string LibraryName { get; set; } = string.Empty;
+
     /// <summary>Gets or sets the production year.</summary>
     public int? ProductionYear { get; set; }
 
