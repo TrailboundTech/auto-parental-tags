@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
 using Jellyfin.Plugin.AutoParentalTags.Configuration;
+using Jellyfin.Plugin.AutoParentalTags.Models;
 using Jellyfin.Plugin.AutoParentalTags.Services;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
@@ -31,6 +32,7 @@ public class LibraryMonitor : ILibraryPostScanTask
     private readonly ILibraryManager _libraryManager;
     private readonly ILogger<LibraryMonitor> _logger;
     private readonly AiServiceFactory _aiServiceFactory;
+    private readonly TagHistoryService? _tagHistoryService;
     private readonly TimeSpan _processingDelay;
     private int _isRunning;
 
@@ -49,15 +51,18 @@ public class LibraryMonitor : ILibraryPostScanTask
     /// <param name="processingDelay">
     /// Optional delay between AI requests.
     /// </param>
+    /// <param name="tagHistoryService">Optional tag-history persistence service.</param>
     public LibraryMonitor(
         ILibraryManager libraryManager,
         ILogger<LibraryMonitor> logger,
         AiServiceFactory aiServiceFactory,
-        TimeSpan? processingDelay = null)
+        TimeSpan? processingDelay = null,
+        TagHistoryService? tagHistoryService = null)
     {
         _libraryManager = libraryManager;
         _logger = logger;
         _aiServiceFactory = aiServiceFactory;
+        _tagHistoryService = tagHistoryService;
         _processingDelay = processingDelay ?? TimeSpan.FromSeconds(1);
     }
 
@@ -271,6 +276,21 @@ public class LibraryMonitor : ILibraryPostScanTask
                     .ToList()
                 : items;
 
+            if (_tagHistoryService is not null)
+            {
+                var protectedItemIds = (await _tagHistoryService
+                        .GetEntriesAsync(cancellationToken)
+                        .ConfigureAwait(false))
+                    .GroupBy(entry => entry.ItemId)
+                    .Where(group => group.First().IsManualOverride)
+                    .Select(group => group.Key)
+                    .ToHashSet();
+
+                candidates = candidates
+                    .Where(item => !protectedItemIds.Contains(item.Id))
+                    .ToList();
+            }
+
             var skippedCount = items.Count - candidates.Count;
 
             _logger.LogInformation(
@@ -396,6 +416,19 @@ public class LibraryMonitor : ILibraryPostScanTask
         }
 
         var mediaType = GetMediaTypeLabel(item);
+
+        if (_tagHistoryService is not null
+            && await _tagHistoryService
+                .HasManualOverrideAsync(item.Id, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            _logger.LogDebug(
+                "Skipping {MediaType} '{Title}' because it has a manual audience-tag override",
+                mediaType,
+                SanitizeForLog(item.Name));
+            return false;
+        }
+
         var existingAudienceTags =
             GetExistingAudienceTags(item);
 
@@ -474,6 +507,36 @@ public class LibraryMonitor : ILibraryPostScanTask
                 ItemUpdateType.MetadataEdit,
                 cancellationToken)
             .ConfigureAwait(false);
+
+        if (_tagHistoryService is not null)
+        {
+            PluginConfiguration? config = null;
+            try
+            {
+                config = Plugin.Instance?.Configuration;
+            }
+            catch (InvalidOperationException)
+            {
+                // Direct callers and tests may process items without a plugin instance.
+            }
+
+            await _tagHistoryService.RecordAsync(
+                    new TagHistoryEntry
+                    {
+                        ItemId = item.Id,
+                        Title = title,
+                        MediaType = mediaType,
+                        ProductionYear = year,
+                        PreviousTag = existingAudienceTags.FirstOrDefault(),
+                        NewTag = audienceTag,
+                        IsManualOverride = false,
+                        Source = config?.Provider.ToString() ?? "AI",
+                        Model = config?.ModelName,
+                        TimestampUtc = DateTimeOffset.UtcNow
+                    },
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
 
         _logger.LogInformation(
             "Added '{Tag}' tag to {MediaType} '{Title}' ({Year})",

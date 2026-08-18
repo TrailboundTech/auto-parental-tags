@@ -17,6 +17,7 @@ public class ServiceRegistrator : IPluginServiceRegistrator
         // Register services without resolving ILoggerFactory during registration phase
         // Logging will occur in the Plugin constructor instead
         serviceCollection.AddSingleton<AiServiceFactory>();
+        serviceCollection.AddSingleton<TagHistoryService>();
         serviceCollection.AddSingleton<LibraryMonitor>();
         serviceCollection.AddSingleton<AutoParentalTagsScheduledTask>();
     }

@@ -249,6 +249,24 @@
                         </button>
                     </div>
                 </form>
+
+                <div style="margin-top: 3em;">
+                    <h2>Tag History and Overrides</h2>
+                    <div class="fieldDescription" style="margin-bottom: 1em;">
+                        AI classifications and administrator corrections are
+                        recorded here. Manual overrides are protected from
+                        later automatic scans.
+                    </div>
+                    <button
+                        id="RefreshTagHistory"
+                        is="emby-button"
+                        type="button"
+                        class="raised emby-button">
+                        Refresh History
+                    </button>
+                    <div id="TagHistoryStatus" class="fieldDescription"></div>
+                    <div id="TagHistoryTable" style="overflow-x: auto;"></div>
+                </div>
             </div>
         </div>
 
@@ -258,6 +276,111 @@
             };
 
             var currentConfig = null;
+
+            function formatHistoryDate(value) {
+                var date = new Date(value);
+                return isNaN(date.getTime()) ? value : date.toLocaleString();
+            }
+
+            async function overrideAudienceTag(itemId, tag) {
+                Dashboard.showLoadingMsg();
+                try {
+                    var response = await ApiClient.fetch({
+                        type: 'POST',
+                        url: ApiClient.getUrl('AutoParentalTags/History/Override'),
+                        contentType: 'application/json',
+                        data: JSON.stringify({ itemId: itemId, tag: tag })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(await response.text());
+                    }
+
+                    await loadTagHistory();
+                } catch (error) {
+                    document.querySelector('#TagHistoryStatus').textContent =
+                        'Override failed: ' + error.message;
+                } finally {
+                    Dashboard.hideLoadingMsg();
+                }
+            }
+
+            function renderTagHistory(entries) {
+                var container = document.querySelector('#TagHistoryTable');
+                container.innerHTML = '';
+
+                if (!entries.length) {
+                    document.querySelector('#TagHistoryStatus').textContent =
+                        'No tag changes have been recorded yet.';
+                    return;
+                }
+
+                document.querySelector('#TagHistoryStatus').textContent =
+                    entries.length + ' tag change(s), newest first.';
+
+                var table = document.createElement('table');
+                table.style.width = '100%';
+                table.innerHTML =
+                    '<thead><tr><th>When</th><th>Content</th><th>Tag</th>' +
+                    '<th>Source</th><th>Override</th></tr></thead>';
+                var body = document.createElement('tbody');
+
+                entries.forEach(function (entry) {
+                    var row = document.createElement('tr');
+                    [
+                        formatHistoryDate(entry.timestampUtc),
+                        entry.title + (entry.productionYear ? ' (' + entry.productionYear + ')' : ''),
+                        (entry.previousTag ? entry.previousTag + ' → ' : '') + entry.newTag,
+                        entry.isManualOverride ? 'Manual override' :
+                            entry.source + (entry.model ? ' / ' + entry.model : '')
+                    ].forEach(function (value) {
+                        var cell = document.createElement('td');
+                        cell.textContent = value;
+                        cell.style.padding = '0.5em';
+                        row.appendChild(cell);
+                    });
+
+                    var actionCell = document.createElement('td');
+                    var select = document.createElement('select');
+                    ['kids', 'teens', 'adults'].forEach(function (tag) {
+                        var option = document.createElement('option');
+                        option.value = tag;
+                        option.textContent = tag;
+                        option.selected = tag === entry.newTag;
+                        select.appendChild(option);
+                    });
+                    var button = document.createElement('button');
+                    button.type = 'button';
+                    button.textContent = 'Apply';
+                    button.className = 'raised emby-button';
+                    button.addEventListener('click', function () {
+                        overrideAudienceTag(entry.itemId, select.value);
+                    });
+                    actionCell.appendChild(select);
+                    actionCell.appendChild(button);
+                    row.appendChild(actionCell);
+                    body.appendChild(row);
+                });
+
+                table.appendChild(body);
+                container.appendChild(table);
+            }
+
+            async function loadTagHistory() {
+                try {
+                    var response = await ApiClient.fetch({
+                        type: 'GET',
+                        url: ApiClient.getUrl('AutoParentalTags/History')
+                    });
+                    if (!response.ok) {
+                        throw new Error(await response.text());
+                    }
+                    renderTagHistory(await response.json());
+                } catch (error) {
+                    document.querySelector('#TagHistoryStatus').textContent =
+                        'Unable to load tag history: ' + error.message;
+                }
+            }
 
             function updateFieldVisibility() {
                 var provider =
@@ -464,6 +587,10 @@
                 );
 
             document
+                .querySelector('#RefreshTagHistory')
+                .addEventListener('click', loadTagHistory);
+
+            document
                 .querySelector(
                     '#AutoParentalTagsConfigPage'
                 )
@@ -562,6 +689,8 @@
                                         option
                                     );
                                 }
+
+                                loadTagHistory();
 
                                 fetchModels().finally(
                                     function () {
