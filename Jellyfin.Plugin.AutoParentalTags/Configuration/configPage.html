@@ -326,13 +326,23 @@
                 var body = document.createElement('tbody');
 
                 entries.forEach(function (entry) {
+                    var itemId = entry.ItemId || entry.itemId;
+                    var title = entry.Title || entry.title || 'Unknown item';
+                    var productionYear = entry.ProductionYear || entry.productionYear;
+                    var previousTag = entry.PreviousTag || entry.previousTag;
+                    var newTag = entry.NewTag || entry.newTag;
+                    var isManualOverride = entry.IsManualOverride === true ||
+                        entry.isManualOverride === true;
+                    var source = entry.Source || entry.source || 'AI';
+                    var model = entry.Model || entry.model;
+                    var timestampUtc = entry.TimestampUtc || entry.timestampUtc;
                     var row = document.createElement('tr');
                     [
-                        formatHistoryDate(entry.timestampUtc),
-                        entry.title + (entry.productionYear ? ' (' + entry.productionYear + ')' : ''),
-                        (entry.previousTag ? entry.previousTag + ' → ' : '') + entry.newTag,
-                        entry.isManualOverride ? 'Manual override' :
-                            entry.source + (entry.model ? ' / ' + entry.model : '')
+                        formatHistoryDate(timestampUtc),
+                        title + (productionYear ? ' (' + productionYear + ')' : ''),
+                        (previousTag ? previousTag + ' → ' : '') + newTag,
+                        isManualOverride ? 'Manual override' :
+                            source + (model ? ' / ' + model : '')
                     ].forEach(function (value) {
                         var cell = document.createElement('td');
                         cell.textContent = value;
@@ -346,7 +356,7 @@
                         var option = document.createElement('option');
                         option.value = tag;
                         option.textContent = tag;
-                        option.selected = tag === entry.newTag;
+                        option.selected = tag === newTag;
                         select.appendChild(option);
                     });
                     var button = document.createElement('button');
@@ -354,7 +364,7 @@
                     button.textContent = 'Apply';
                     button.className = 'raised emby-button';
                     button.addEventListener('click', function () {
-                        overrideAudienceTag(entry.itemId, select.value);
+                        overrideAudienceTag(itemId, select.value);
                     });
                     actionCell.appendChild(select);
                     actionCell.appendChild(button);
