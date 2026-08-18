@@ -1,0 +1,20 @@
+[
+  {
+    "category": "Metadata",
+    "description": "Uses AI to analyze movie and TV-series metadata and automatically apply audience-target tags for kids, teens, or adults.",
+    "guid": "eb5d7894-8eef-4b36-aa6f-5d124e828ce1",
+    "name": "Auto Parental Tags",
+    "overview": "Automatically classify Jellyfin content by its intended audience.",
+    "owner": "TrailboundTech",
+    "versions": [
+      {
+        "changelog": "Adds configurable movie and TV-series scanning, skips already-classified content, supports LocalAI model discovery and reasoning models, and updates compatibility to Jellyfin 10.11.11.",
+        "checksum": "c2d2b99ca085fbc92ba75fb879eaa5fc",
+        "sourceUrl": "https://github.com/TrailboundTech/auto-parental-tags/releases/download/v1.0.2/auto-parental-tags_1.0.2.0.zip",
+        "targetAbi": "10.11.11.0",
+        "timestamp": "2026-08-18T20:42:37Z",
+        "version": "1.0.2"
+      }
+    ]
+  }
+]
