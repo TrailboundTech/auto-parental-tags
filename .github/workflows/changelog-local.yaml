@@ -58,7 +58,7 @@ jobs:
             # https://docs.microsoft.com/en-us/visualstudio/msbuild/customize-your-build?view=vs-2022
             # FIXED: Changed from ${VERSION}.0.0.0 to proper version formats
             # Version: 3 segments for NuGet (e.g., 0.1.0)
-            # AssemblyVersion: 4 segments matching targetAbi (e.g., 10.11.5.0)
+            # AssemblyVersion: 4 segments matching targetAbi (e.g., 12.0.0.0)
             # FileVersion: 4 segments (e.g., 0.1.0.0)
             sed -i Directory.Build.props \
               -e "s;<Version>.*</Version>;<Version>${VERSION}</Version>;" \

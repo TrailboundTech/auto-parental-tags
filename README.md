@@ -85,14 +85,14 @@ Other OpenAI-compatible APIs may also work when they expose compatible `/v1/mode
 
 ## Requirements
 
-- **Jellyfin Server:** 10.11.11
-- **.NET target framework:** .NET 9
+- **Jellyfin Server:** 12.0 or newer
+- **.NET target framework:** .NET 10
 - One supported AI provider:
   - Google Gemini API key
   - OpenAI API key
   - LocalAI or another compatible self-hosted API
 
-The current plugin build is compiled and tested against Jellyfin 10.11.11. Binary compatibility with older Jellyfin releases is not guaranteed.
+The current plugin build is compiled and tested against Jellyfin 12.0. It is not binary-compatible with Jellyfin 10.x; those servers require a legacy plugin build.
 
 ## Installation
 
@@ -128,7 +128,7 @@ Common plugin locations include:
 A typical Docker installation might use:
 
 ```text
-/config/plugins/Auto Parental Tags_1.0.2.0/
+/config/plugins/Auto Parental Tags_1.1.0.0/
 ├── Jellyfin.Plugin.AutoParentalTags.dll
 └── Jellyfin.Plugin.AutoParentalTags.deps.json
 ```

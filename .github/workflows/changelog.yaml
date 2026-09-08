@@ -20,5 +20,5 @@ jobs:
     # Using local workflow with fixed version formatting
     uses: ./.github/workflows/changelog-local.yaml
     with:
-      repository-name: klopstack/auto-parental-tags
+      repository-name: TrailboundTech/auto-parental-tags
     secrets: inherit

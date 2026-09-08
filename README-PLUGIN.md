@@ -92,8 +92,8 @@ It then asks the AI to determine the **target audience** (not content rating), c
 
 ## Requirements
 
-- Jellyfin 10.9.x or higher
-- .NET 9.0 runtime
+- Jellyfin 12.0 or newer
+- .NET 10.0 runtime
 - One of:
   - Google Gemini API key
   - OpenAI API key

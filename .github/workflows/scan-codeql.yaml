@@ -21,4 +21,4 @@ jobs:
   call:
     uses: jellyfin/jellyfin-meta-plugins/.github/workflows/scan-codeql.yaml@master
     with:
-      repository-name: klopstack/auto-parental-tags
+      repository-name: TrailboundTech/auto-parental-tags
