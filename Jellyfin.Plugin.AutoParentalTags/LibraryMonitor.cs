@@ -18,7 +18,7 @@ namespace Jellyfin.Plugin.AutoParentalTags;
 /// <summary>
 /// Monitors library changes and processes movies and TV series.
 /// </summary>
-public class LibraryMonitor : ILibraryPostScanTask
+public class LibraryMonitor : ILibraryPostScanTask, IDisposable
 {
     private static readonly HashSet<string> AudienceTags =
         new(StringComparer.OrdinalIgnoreCase)
@@ -33,6 +33,7 @@ public class LibraryMonitor : ILibraryPostScanTask
     private readonly AiServiceFactory _aiServiceFactory;
     private readonly TimeSpan _processingDelay;
     private readonly SemaphoreSlim _runLock = new(1, 1);
+    private bool _disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LibraryMonitor"/> class.
@@ -139,9 +140,9 @@ public class LibraryMonitor : ILibraryPostScanTask
     {
         return RunCoreAsync(
             progress,
-            cancellationToken,
             requireLibraryScanSetting: true,
-            triggerName: "library scan");
+            triggerName: "library scan",
+            cancellationToken: cancellationToken);
     }
 
     /// <summary>
@@ -157,16 +158,16 @@ public class LibraryMonitor : ILibraryPostScanTask
     {
         return RunCoreAsync(
             progress,
-            cancellationToken,
             requireLibraryScanSetting: false,
-            triggerName: "manual task");
+            triggerName: "manual task",
+            cancellationToken: cancellationToken);
     }
 
     private async Task RunCoreAsync(
         IProgress<double> progress,
-        CancellationToken cancellationToken,
         bool requireLibraryScanSetting,
-        string triggerName)
+        string triggerName,
+        CancellationToken cancellationToken = default)
     {
         var lockTaken = false;
 
@@ -540,5 +541,33 @@ public class LibraryMonitor : ILibraryPostScanTask
                 overwriteExisting,
                 cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases the resources used by this instance.
+    /// </summary>
+    /// <param name="disposing">
+    /// True to release both managed and unmanaged resources.
+    /// </param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (disposing)
+        {
+            _runLock.Dispose();
+        }
+
+        _disposed = true;
     }
 }

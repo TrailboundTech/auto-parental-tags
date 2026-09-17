@@ -55,10 +55,21 @@ public class GeminiService : IAiService, IDisposable
     /// <param name="logger">
     /// Instance of the <see cref="ILogger{GeminiService}"/> interface.
     /// </param>
-    public GeminiService(ILogger<GeminiService> logger)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GeminiService"/> class with an optional HTTP handler.
+    /// </summary>
+    /// <param name="handler">
+    /// Optional HTTP message handler, primarily for testing. When omitted a
+    /// default <see cref="HttpClient"/> is created.
+    /// </param>
+    public GeminiService(
+        ILogger<GeminiService> logger,
+        HttpMessageHandler? handler = null)
     {
         _logger = logger;
-        _httpClient = new HttpClient();
+        _httpClient = handler is null
+            ? new HttpClient()
+            : new HttpClient(handler);
     }
 
     /// <summary>

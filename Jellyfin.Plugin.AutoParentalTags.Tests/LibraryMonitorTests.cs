@@ -10,6 +10,7 @@ using Jellyfin.Plugin.AutoParentalTags.Services;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
+using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Serialization;
@@ -189,8 +190,8 @@ public class LibraryMonitorTests : IAsyncLifetime
 
         var movies = new List<BaseItem>
         {
-            new TestMovie { Name = "Movie 1" },
-            new TestMovie { Name = "Movie 2" }
+            new TestMovie { Id = Guid.NewGuid(), Name = "Movie 1" },
+            new TestMovie { Id = Guid.NewGuid(), Name = "Movie 2" }
         };
 
         var mockLibraryManager = new Mock<ILibraryManager>();
@@ -513,6 +514,68 @@ public class LibraryMonitorTests : IAsyncLifetime
         Assert.Equal("kids", movie.Tags[0]);
     }
 
+    [Fact]
+    public void Dispose_ShouldNotThrow()
+    {
+        // Arrange
+        var mockLibraryManager = new Mock<ILibraryManager>();
+        var mockLogger = new Mock<ILogger<LibraryMonitor>>();
+        var mockAiServiceFactory = new Mock<AiServiceFactory>(Mock.Of<ILoggerFactory>());
+        var monitor = new LibraryMonitor(
+            mockLibraryManager.Object,
+            mockLogger.Object,
+            mockAiServiceFactory.Object);
+
+        // Act & Assert
+        Exception? thrown = null;
+        try
+        {
+            monitor.Dispose();
+        }
+        catch (Exception ex)
+        {
+            thrown = ex;
+        }
+
+        Assert.Null(thrown);
+    }
+
+    [Fact]
+    public async Task ProcessSeriesAsync_ShouldAddAudienceTag()
+    {
+        // Arrange
+        var mockLibraryManager = new Mock<ILibraryManager>();
+        var mockLogger = new Mock<ILogger<LibraryMonitor>>();
+        var mockAiServiceFactory = new Mock<AiServiceFactory>(Mock.Of<ILoggerFactory>());
+        var mockAiService = new Mock<IAiService>();
+        mockAiService.Setup(x => x.DetermineTargetAudienceAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string[]?>()))
+            .ReturnsAsync("teens");
+
+        var monitor = new LibraryMonitor(
+            mockLibraryManager.Object,
+            mockLogger.Object,
+            mockAiServiceFactory.Object);
+
+        var series = new TestSeries
+        {
+            Name = "Test Series",
+            ProductionYear = 2020,
+            Tags = Array.Empty<string>()
+        };
+
+        // Act
+        await monitor.ProcessSeriesAsync(series, mockAiService.Object, true, CancellationToken.None);
+
+        // Assert
+        Assert.Contains("teens", series.Tags);
+    }
+
     private static void ClearPluginInstance()
     {
         var instanceProperty = typeof(Plugin).GetProperty(
@@ -549,6 +612,14 @@ public class LibraryMonitorTests : IAsyncLifetime
 /// Test double for Movie that skips repository calls.
 /// </summary>
 internal class TestMovie : Movie
+{
+    public override Task UpdateToRepositoryAsync(ItemUpdateType updateReason, CancellationToken cancellationToken = default)
+    {
+        return Task.CompletedTask;
+    }
+}
+
+internal class TestSeries : Series
 {
     public override Task UpdateToRepositoryAsync(ItemUpdateType updateReason, CancellationToken cancellationToken = default)
     {

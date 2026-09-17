@@ -58,10 +58,21 @@ public class OpenAiService : IAiService, IDisposable
     /// <param name="logger">
     /// Instance of the <see cref="ILogger{OpenAiService}"/> interface.
     /// </param>
-    public OpenAiService(ILogger<OpenAiService> logger)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="OpenAiService"/> class with an optional HTTP handler.
+    /// </summary>
+    /// <param name="handler">
+    /// Optional HTTP message handler, primarily for testing. When omitted a
+    /// default <see cref="HttpClient"/> is created.
+    /// </param>
+    public OpenAiService(
+        ILogger<OpenAiService> logger,
+        HttpMessageHandler? handler = null)
     {
         _logger = logger;
-        _httpClient = new HttpClient();
+        _httpClient = handler is null
+            ? new HttpClient()
+            : new HttpClient(handler);
     }
 
     /// <summary>
