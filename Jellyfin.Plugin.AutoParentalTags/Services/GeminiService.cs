@@ -149,9 +149,12 @@ public class GeminiService : IAiService, IDisposable
 
         _modelName = modelName;
 
-        _logger.LogDebug(
-            "Gemini model name set to: {ModelName}",
-            SanitizeForLog(modelName));
+        if (_logger.IsEnabled(LogLevel.Debug))
+        {
+            _logger.LogDebug(
+                "Gemini model name set to: {ModelName}",
+                SanitizeForLog(modelName));
+        }
     }
 
     /// <inheritdoc />
@@ -184,11 +187,14 @@ public class GeminiService : IAiService, IDisposable
                 officialRating,
                 genres);
 
-            _logger.LogDebug(
-                "Requesting Gemini audience classification for {MediaType} '{Title}' ({Year})",
-                normalizedMediaType,
-                SanitizeForLog(title),
-                year);
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDebug(
+                    "Requesting Gemini audience classification for {MediaType} '{Title}' ({Year})",
+                    normalizedMediaType,
+                    SanitizeForLog(title),
+                    year);
+            }
 
             var requestBody = new
             {
@@ -331,12 +337,15 @@ public class GeminiService : IAiService, IDisposable
                 return null;
             }
 
-            _logger.LogInformation(
-                "Classified {MediaType} '{Title}' ({Year}) as '{Tag}'",
-                normalizedMediaType,
-                SanitizeForLog(title),
-                year,
-                tag);
+            if (_logger.IsEnabled(LogLevel.Information))
+            {
+                _logger.LogInformation(
+                    "Classified {MediaType} '{Title}' ({Year}) as '{Tag}'",
+                    normalizedMediaType,
+                    SanitizeForLog(title),
+                    year,
+                    tag);
+            }
 
             return tag;
         }
@@ -590,9 +599,12 @@ adults";
                     StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
-            _logger.LogDebug(
-                "Found {Count} Gemini models",
-                models.Length);
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDebug(
+                    "Found {Count} Gemini models",
+                    models.Length);
+            }
 
             return models;
         }

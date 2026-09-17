@@ -179,9 +179,12 @@ public class LibraryMonitor : ILibraryPostScanTask, IDisposable
 
             if (!lockTaken)
             {
-                _logger.LogInformation(
-                    "Auto Parental Tags is already running; skipping overlapping {Trigger} invocation",
-                    triggerName);
+                if (_logger.IsEnabled(LogLevel.Information))
+                {
+                    _logger.LogInformation(
+                        "Auto Parental Tags is already running; skipping overlapping {Trigger} invocation",
+                        triggerName);
+                }
 
                 progress?.Report(100);
                 return;
@@ -253,9 +256,12 @@ public class LibraryMonitor : ILibraryPostScanTask, IDisposable
             {
                 progress?.Report(100);
 
-                _logger.LogInformation(
-                    "No matching movies or TV series were found for {Trigger}",
-                    triggerName);
+                if (_logger.IsEnabled(LogLevel.Information))
+                {
+                    _logger.LogInformation(
+                        "No matching movies or TV series were found for {Trigger}",
+                        triggerName);
+                }
 
                 return;
             }
@@ -277,12 +283,15 @@ public class LibraryMonitor : ILibraryPostScanTask, IDisposable
 
             var skippedCount = items.Count - candidates.Count;
 
-            _logger.LogInformation(
-                "Auto Parental Tags {Trigger}: examined {Examined} items, {Candidates} require classification, {Skipped} already classified items skipped",
-                triggerName,
-                items.Count,
-                candidates.Count,
-                skippedCount);
+            if (_logger.IsEnabled(LogLevel.Information))
+            {
+                _logger.LogInformation(
+                    "Auto Parental Tags {Trigger}: examined {Examined} items, {Candidates} require classification, {Skipped} already classified items skipped",
+                    triggerName,
+                    items.Count,
+                    candidates.Count,
+                    skippedCount);
+            }
 
             if (candidates.Count == 0)
             {
@@ -349,14 +358,17 @@ public class LibraryMonitor : ILibraryPostScanTask, IDisposable
                 }
             }
 
-            _logger.LogInformation(
-                "Completed audience classification for {Trigger}. Examined: {Examined}, AI candidates: {Candidates}, tagged: {Tagged}, skipped: {Skipped}, failed: {Failed}",
-                triggerName,
-                items.Count,
-                totalCandidates,
-                taggedCount,
-                skippedCount,
-                failedCount);
+            if (_logger.IsEnabled(LogLevel.Information))
+            {
+                _logger.LogInformation(
+                    "Completed audience classification for {Trigger}. Examined: {Examined}, AI candidates: {Candidates}, tagged: {Tagged}, skipped: {Skipped}, failed: {Failed}",
+                    triggerName,
+                    items.Count,
+                    totalCandidates,
+                    taggedCount,
+                    skippedCount,
+                    failedCount);
+            }
 
             progress?.Report(100);
         }
@@ -391,10 +403,13 @@ public class LibraryMonitor : ILibraryPostScanTask, IDisposable
     {
         if (item is not Movie && item is not Series)
         {
-            _logger.LogDebug(
-                "Skipping unsupported item type {ItemType} for '{Title}'",
-                item.GetType().Name,
-                SanitizeForLog(item.Name));
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDebug(
+                    "Skipping unsupported item type {ItemType} for '{Title}'",
+                    item.GetType().Name,
+                    SanitizeForLog(item.Name));
+            }
 
             return false;
         }
@@ -406,11 +421,14 @@ public class LibraryMonitor : ILibraryPostScanTask, IDisposable
         if (existingAudienceTags.Count > 0
             && !overwriteExisting)
         {
-            _logger.LogDebug(
-                "{MediaType} '{Title}' already has audience tag(s): {Tags}",
-                mediaType,
-                SanitizeForLog(item.Name),
-                string.Join(", ", existingAudienceTags));
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDebug(
+                    "{MediaType} '{Title}' already has audience tag(s): {Tags}",
+                    mediaType,
+                    SanitizeForLog(item.Name),
+                    string.Join(", ", existingAudienceTags));
+            }
 
             return false;
         }
@@ -479,12 +497,15 @@ public class LibraryMonitor : ILibraryPostScanTask, IDisposable
                 cancellationToken)
             .ConfigureAwait(false);
 
-        _logger.LogInformation(
-            "Added '{Tag}' tag to {MediaType} '{Title}' ({Year})",
-            audienceTag,
-            mediaType,
-            SanitizeForLog(title),
-            year);
+        if (_logger.IsEnabled(LogLevel.Information))
+        {
+            _logger.LogInformation(
+                "Added '{Tag}' tag to {MediaType} '{Title}' ({Year})",
+                audienceTag,
+                mediaType,
+                SanitizeForLog(title),
+                year);
+        }
 
         return true;
     }

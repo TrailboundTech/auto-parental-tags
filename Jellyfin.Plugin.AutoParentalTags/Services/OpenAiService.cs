@@ -165,7 +165,10 @@ public class OpenAiService : IAiService, IDisposable
                 _endpoint += "/v1/chat/completions";
             }
 
-            _logger.LogInformation("OpenAI endpoint configured: {Endpoint}", SanitizeForLog(_endpoint));
+            if (_logger.IsEnabled(LogLevel.Information))
+            {
+                _logger.LogInformation("OpenAI endpoint configured: {Endpoint}", SanitizeForLog(_endpoint));
+            }
         }
     }
 
@@ -179,9 +182,12 @@ public class OpenAiService : IAiService, IDisposable
 
         _modelName = modelName;
 
-        _logger.LogDebug(
-            "OpenAI-compatible model name set to: {ModelName}",
-            SanitizeForLog(modelName));
+        if (_logger.IsEnabled(LogLevel.Debug))
+        {
+            _logger.LogDebug(
+                "OpenAI-compatible model name set to: {ModelName}",
+                SanitizeForLog(modelName));
+        }
     }
 
     /// <inheritdoc />
@@ -206,11 +212,14 @@ public class OpenAiService : IAiService, IDisposable
                 officialRating,
                 genres);
 
-            _logger.LogDebug(
-                "Requesting audience classification for {MediaType} '{Title}' ({Year})",
-                normalizedMediaType,
-                SanitizeForLog(title),
-                year);
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDebug(
+                    "Requesting audience classification for {MediaType} '{Title}' ({Year})",
+                    normalizedMediaType,
+                    SanitizeForLog(title),
+                    year);
+            }
 
             var requestBody = new
             {
@@ -346,12 +355,15 @@ public class OpenAiService : IAiService, IDisposable
                 return null;
             }
 
-            _logger.LogInformation(
-                "Classified {MediaType} '{Title}' ({Year}) as '{Tag}'",
-                normalizedMediaType,
-                SanitizeForLog(title),
-                year,
-                tag);
+            if (_logger.IsEnabled(LogLevel.Information))
+            {
+                _logger.LogInformation(
+                    "Classified {MediaType} '{Title}' ({Year}) as '{Tag}'",
+                    normalizedMediaType,
+                    SanitizeForLog(title),
+                    year,
+                    tag);
+            }
 
             return tag;
         }
@@ -576,9 +588,12 @@ adults";
                     StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
-            _logger.LogDebug(
-                "Found {Count} OpenAI-compatible models",
-                models.Length);
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDebug(
+                    "Found {Count} OpenAI-compatible models",
+                    models.Length);
+            }
 
             return models;
         }
