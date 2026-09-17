@@ -139,42 +139,34 @@ public class OpenAiService : IAiService, IDisposable
     /// <inheritdoc />
     public void SetEndpoint(string endpoint)
     {
-        if (string.IsNullOrWhiteSpace(endpoint))
+        if (!string.IsNullOrEmpty(endpoint))
         {
-            return;
-        }
+            // Accept a server base URL, a /v1 base URL, or a complete
+            // chat-completions endpoint.
+            _endpoint = endpoint.Trim().TrimEnd('/');
 
-        // Accept:
-        // - a server base URL
-        // - a /v1 base URL
-        // - a complete /chat/completions endpoint
-        _endpoint = endpoint
-            .Trim()
-            .TrimEnd('/');
+            if (_endpoint.EndsWith(
+                    "/v1/chat/completions",
+                    StringComparison.OrdinalIgnoreCase)
+                || _endpoint.EndsWith(
+                    "/chat/completions",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                // Complete endpoint was supplied.
+            }
+            else if (_endpoint.EndsWith(
+                         "/v1",
+                         StringComparison.OrdinalIgnoreCase))
+            {
+                _endpoint += "/chat/completions";
+            }
+            else
+            {
+                _endpoint += "/v1/chat/completions";
+            }
 
-        if (_endpoint.EndsWith(
-                "/v1/chat/completions",
-                StringComparison.OrdinalIgnoreCase)
-            || _endpoint.EndsWith(
-                "/chat/completions",
-                StringComparison.OrdinalIgnoreCase))
-        {
-            // Complete endpoint was supplied.
+            _logger.LogInformation("OpenAI endpoint configured: {Endpoint}", SanitizeForLog(_endpoint));
         }
-        else if (_endpoint.EndsWith(
-                     "/v1",
-                     StringComparison.OrdinalIgnoreCase))
-        {
-            _endpoint += "/chat/completions";
-        }
-        else
-        {
-            _endpoint += "/v1/chat/completions";
-        }
-
-        _logger.LogInformation(
-            "OpenAI endpoint configured: {Endpoint}",
-            SanitizeForLog(_endpoint));
     }
 
     /// <inheritdoc />
@@ -516,6 +508,7 @@ adults";
     {
         try
         {
+            // Build the models endpoint from the chat endpoint
             var modelsEndpoint = _endpoint.Replace(
                 "/chat/completions",
                 "/models",
