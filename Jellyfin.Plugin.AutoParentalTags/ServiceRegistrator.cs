@@ -18,6 +18,7 @@ public class ServiceRegistrator : IPluginServiceRegistrator
         // Logging will occur in the Plugin constructor instead
         serviceCollection.AddSingleton<AiServiceFactory>();
         serviceCollection.AddSingleton<TagHistoryService>();
+        serviceCollection.AddSingleton<TmdbRatingLookupService>();
         serviceCollection.AddSingleton<LibraryMonitor>();
         serviceCollection.AddSingleton<AutoParentalTagsScheduledTask>();
     }

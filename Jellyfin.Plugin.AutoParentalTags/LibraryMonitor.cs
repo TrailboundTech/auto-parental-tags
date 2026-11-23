@@ -33,6 +33,7 @@ public class LibraryMonitor : ILibraryPostScanTask
     private readonly ILogger<LibraryMonitor> _logger;
     private readonly AiServiceFactory _aiServiceFactory;
     private readonly TagHistoryService? _tagHistoryService;
+    private readonly TmdbRatingLookupService? _ratingLookupService;
     private readonly TimeSpan _processingDelay;
     private int _isRunning;
 
@@ -52,13 +53,16 @@ public class LibraryMonitor : ILibraryPostScanTask
     /// Optional delay between AI requests.
     /// </param>
     /// <param name="tagHistoryService">Optional tag-history persistence service.</param>
+    /// <param name="ratingLookupService">Optional TMDb lookup for items without an official rating.</param>
     public LibraryMonitor(
         ILibraryManager libraryManager,
         ILogger<LibraryMonitor> logger,
         AiServiceFactory aiServiceFactory,
         TimeSpan? processingDelay = null,
-        TagHistoryService? tagHistoryService = null)
+        TagHistoryService? tagHistoryService = null,
+        TmdbRatingLookupService? ratingLookupService = null)
     {
+        _ratingLookupService = ratingLookupService;
         _libraryManager = libraryManager;
         _logger = logger;
         _aiServiceFactory = aiServiceFactory;
@@ -427,6 +431,79 @@ public class LibraryMonitor : ILibraryPostScanTask
     }
 
     /// <summary>
+    /// Returns true when an official rating is missing or only says the item is unrated.
+    /// </summary>
+    /// <param name="rating">The official rating.</param>
+    /// <returns>True when the rating carries no audience information.</returns>
+    public static bool IsMissingRating(string? rating)
+    {
+        return string.IsNullOrWhiteSpace(rating)
+            || rating.Trim().Equals("NR", StringComparison.OrdinalIgnoreCase)
+            || rating.Trim().Equals("Not Rated", StringComparison.OrdinalIgnoreCase)
+            || rating.Trim().Equals("Unrated", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Builds the classification request from item metadata, looking up a rating when none is set.
+    /// </summary>
+    /// <param name="item">The Jellyfin library item.</param>
+    /// <param name="mediaType">Movie or TV series label.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The classification request.</returns>
+    public async Task<AudienceRequest> BuildAudienceRequestAsync(
+        BaseItem item,
+        string mediaType,
+        CancellationToken cancellationToken)
+    {
+        var request = new AudienceRequest(
+            mediaType,
+            item.Name,
+            item.ProductionYear,
+            item.Overview,
+            IsMissingRating(item.OfficialRating) ? null : item.OfficialRating,
+            item.Genres)
+        {
+            Tagline = item.Tagline,
+            Studios = item.Studios,
+            Keywords = item.Tags?
+                .Where(tag => !AudienceTags.Contains(tag))
+                .ToArray()
+        };
+
+        var config = Plugin.Instance?.Configuration;
+        if (request.OfficialRating is null
+            && _ratingLookupService is not null
+            && (config?.EnableRatingLookup ?? true))
+        {
+            var lookup = await _ratingLookupService.LookupAsync(
+                    item is Series,
+                    item.GetProviderId(MetadataProvider.Tmdb),
+                    item.GetProviderId(MetadataProvider.Imdb),
+                    config?.TmdbApiKey,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            if (lookup is not null)
+            {
+                _logger.LogDebug(
+                    "Using looked-up rating {Rating} ({Source}) for {MediaType} '{Title}'",
+                    lookup.Rating,
+                    lookup.Source,
+                    mediaType,
+                    SanitizeForLog(item.Name));
+
+                request = request with
+                {
+                    LookedUpRating = lookup.Rating,
+                    LookedUpRatingSource = lookup.Source
+                };
+            }
+        }
+
+        return request;
+    }
+
+    /// <summary>
     /// Processes a movie or TV series and applies an audience tag.
     /// </summary>
     /// <param name="item">The movie or TV series to process.</param>
@@ -487,18 +564,11 @@ public class LibraryMonitor : ILibraryPostScanTask
 
         var title = item.Name;
         var year = item.ProductionYear;
-        var overview = item.Overview;
-        var rating = item.OfficialRating;
-        var genres = item.Genres?.ToArray();
+        var request = await BuildAudienceRequestAsync(item, mediaType, cancellationToken)
+            .ConfigureAwait(false);
 
         var audienceTag =
-            await aiService.DetermineTargetAudienceAsync(
-                    mediaType,
-                    title,
-                    year,
-                    overview,
-                    rating,
-                    genres)
+            await aiService.DetermineTargetAudienceAsync(request)
                 .ConfigureAwait(false);
 
         if (string.IsNullOrWhiteSpace(audienceTag))

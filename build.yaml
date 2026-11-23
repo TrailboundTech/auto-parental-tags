@@ -1,7 +1,7 @@
 ---
 name: "Auto Parental Tags"
 guid: "eb5d7894-8eef-4b36-aa6f-5d124e828ce1"
-version: "1.1.0"
+version: "1.2.0"
 targetAbi: "12.0.0.0"
 framework: "net10.0"
 overview: "Automatically tag movies with target audience using AI"
@@ -13,5 +13,7 @@ owner: "TrailboundTech"
 artifacts:
   - "Jellyfin.Plugin.AutoParentalTags.dll"
 changelog: |-
+  - Send tagline, studios/networks and keywords to the AI for more accurate audience tags.
+  - Look up missing official ratings on TMDb (US first, then GB, CA, AU, IE, NZ, DE) using Jellyfin's TMDb key or an optional key.
+  - Balance the prompt so family films, sitcoms and cartoons are not over-tagged as adults.
   - Add compatibility with Jellyfin 12.0 and .NET 10.
-  - Rebuild against the Jellyfin 12.0 plugin API.

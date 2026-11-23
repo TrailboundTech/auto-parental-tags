@@ -160,13 +160,7 @@ public class OpenAiServiceTests
         service.SetModelName("gpt-3.5-turbo");
 
         // Act
-        var result = await service.DetermineTargetAudienceAsync(
-                "movie",
-                "Test Movie",
-            2020,
-            "A test movie about adventures",
-            "PG",
-            new[] { "Action", "Adventure" });
+        var result = await service.DetermineTargetAudienceAsync(new AudienceRequest("movie", "Test Movie", 2020, "A test movie about adventures", "PG", new[] { "Action", "Adventure" }));
 
         // Assert - Will return null because we can't actually call the API
         Assert.Null(result);
@@ -184,13 +178,7 @@ public class OpenAiServiceTests
         service.SetApiKey("test-key");
 
         // Act
-        var result = await service.DetermineTargetAudienceAsync(
-                "movie",
-                "Test Movie",
-            null,
-            "A test movie",
-            "PG",
-            new[] { "Action" });
+        var result = await service.DetermineTargetAudienceAsync(new AudienceRequest("movie", "Test Movie", null, "A test movie", "PG", new[] { "Action" }));
 
         // Assert
         Assert.Null(result);
@@ -208,13 +196,7 @@ public class OpenAiServiceTests
         service.SetApiKey("test-key");
 
         // Act
-        var result = await service.DetermineTargetAudienceAsync(
-                "movie",
-                "Test Movie",
-            2020,
-            null,
-            "PG",
-            new[] { "Action" });
+        var result = await service.DetermineTargetAudienceAsync(new AudienceRequest("movie", "Test Movie", 2020, null, "PG", new[] { "Action" }));
 
         // Assert
         Assert.Null(result);
@@ -232,13 +214,7 @@ public class OpenAiServiceTests
         service.SetApiKey("test-key");
 
         // Act
-        var result = await service.DetermineTargetAudienceAsync(
-                "movie",
-                "Test Movie",
-            2020,
-            "A test movie",
-            null,
-            new[] { "Action" });
+        var result = await service.DetermineTargetAudienceAsync(new AudienceRequest("movie", "Test Movie", 2020, "A test movie", null, new[] { "Action" }));
 
         // Assert
         Assert.Null(result);
@@ -256,13 +232,7 @@ public class OpenAiServiceTests
         service.SetApiKey("test-key");
 
         // Act
-        var result = await service.DetermineTargetAudienceAsync(
-                "movie",
-                "Test Movie",
-            2020,
-            "A test movie",
-            "PG",
-            null);
+        var result = await service.DetermineTargetAudienceAsync(new AudienceRequest("movie", "Test Movie", 2020, "A test movie", "PG", null));
 
         // Assert
         Assert.Null(result);

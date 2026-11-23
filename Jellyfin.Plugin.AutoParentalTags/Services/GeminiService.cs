@@ -144,14 +144,13 @@ public class GeminiService : IAiService, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task<string?> DetermineTargetAudienceAsync(
-        string mediaType,
-        string title,
-        int? year,
-        string? overview,
-        string? officialRating,
-        string[]? genres)
+    public async Task<string?> DetermineTargetAudienceAsync(AudienceRequest request)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var mediaType = request.MediaType;
+        var title = request.Title;
+        var year = request.Year;
         if (string.IsNullOrWhiteSpace(_apiKey))
         {
             _logger.LogWarning(
@@ -167,11 +166,7 @@ public class GeminiService : IAiService, IDisposable
         {
             var prompt = BuildPrompt(
                 normalizedMediaType,
-                title,
-                year,
-                overview,
-                officialRating,
-                genres);
+                request);
 
             _logger.LogDebug(
                 "Requesting Gemini audience classification for {MediaType} '{Title}' ({Year})",
@@ -346,20 +341,17 @@ public class GeminiService : IAiService, IDisposable
     /// Builds the audience-classification prompt.
     /// </summary>
     /// <param name="mediaType">Movie or TV series.</param>
-    /// <param name="title">Item title.</param>
-    /// <param name="year">Release or premiere year.</param>
-    /// <param name="overview">Item synopsis.</param>
-    /// <param name="officialRating">Official content rating.</param>
-    /// <param name="genres">Item genres.</param>
+    /// <param name="request">Item metadata.</param>
     /// <returns>The completed prompt.</returns>
     private static string BuildPrompt(
         string mediaType,
-        string title,
-        int? year,
-        string? overview,
-        string? officialRating,
-        string[]? genres)
+        AudienceRequest request)
     {
+        var title = request.Title;
+        var year = request.Year;
+        var genres = request.Genres;
+        var overview = request.Overview;
+
         var informationHeading =
             mediaType.Equals(
                 "TV series",
@@ -383,15 +375,16 @@ Target audience differs from content appropriateness:
 - A family-safe title may still primarily target adults.
 - A PG-13 action title may primarily target teenagers.
 - An unrated animated special may clearly target children.
+{AudiencePromptContext.BalanceGuidance}
 
 {mediaSpecificGuidance}
 
 {informationHeading}:
 Title: {title}
 Year: {year?.ToString(CultureInfo.InvariantCulture) ?? "Unknown"}
-Official Rating: {officialRating ?? "Not Rated"}
-Genres: {(genres?.Length > 0 ? string.Join(", ", genres) : "Unknown")}
-Overview: {overview ?? "No overview available"}
+Official Rating: {AudiencePromptContext.FormatRating(request)}
+Genres: {(genres?.Count > 0 ? string.Join(", ", genres) : "Unknown")}
+Overview: {overview ?? "No overview available"}{AudiencePromptContext.FormatAdditionalContext(request)}
 
 Choose exactly one category:
 - kids: primarily targeted at children, generally ages 2-11

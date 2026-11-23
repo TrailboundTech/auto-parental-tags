@@ -16,6 +16,8 @@ The plugin classifies content by its intended audience rather than relying only 
 - Classifies TV shows once at the series level
 - Does not process seasons or episodes individually
 - Supports Google Gemini, OpenAI, LocalAI, and compatible OpenAI APIs
+- Sends title, year, rating, genres, overview, tagline, studios/networks and keywords to the AI
+- Looks up a missing official rating on TMDb (optional; uses Jellyfin's TMDb key unless you set your own)
 - Retrieves available models directly from the selected AI provider
 - Applies one audience tag: `kids`, `teens`, or `adults`
 - Can automatically run after Jellyfin library scans

@@ -63,6 +63,8 @@ public class PluginConfiguration : BasePluginConfiguration
         OverwriteExistingTags = false;
         ScanMode = MediaScanMode.Movies;
         SkipPreviouslyTagged = true;
+        EnableRatingLookup = true;
+        TmdbApiKey = string.Empty;
     }
 
     /// <summary>
@@ -110,4 +112,14 @@ public class PluginConfiguration : BasePluginConfiguration
     /// audience classification tag should be skipped.
     /// </summary>
     public bool SkipPreviouslyTagged { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether a missing official rating is looked up on TMDb.
+    /// </summary>
+    public bool EnableRatingLookup { get; set; }
+
+    /// <summary>
+    /// Gets or sets an optional TMDb API key. When empty, Jellyfin's TMDb key is used.
+    /// </summary>
+    public string TmdbApiKey { get; set; }
 }

@@ -108,13 +108,7 @@ public class GeminiServiceTests
         using var service = new GeminiService(mockLogger.Object);
 
         // Act
-        var result = await service.DetermineTargetAudienceAsync(
-                "movie",
-                "Test Movie",
-            2020,
-            "A test movie",
-            "PG",
-            new[] { "Action", "Adventure" });
+        var result = await service.DetermineTargetAudienceAsync(new AudienceRequest("movie", "Test Movie", 2020, "A test movie", "PG", new[] { "Action", "Adventure" }));
 
         // Assert
         Assert.Null(result);
@@ -146,13 +140,7 @@ public class GeminiServiceTests
         service.SetApiKey("test-key");
 
         // Act
-        var result = await service.DetermineTargetAudienceAsync(
-                "movie",
-                "Test Movie",
-            null,
-            "A test movie",
-            "PG",
-            new[] { "Action" });
+        var result = await service.DetermineTargetAudienceAsync(new AudienceRequest("movie", "Test Movie", null, "A test movie", "PG", new[] { "Action" }));
 
         // Assert - Returns null because we can't actually call the API
         Assert.Null(result);
@@ -170,13 +158,7 @@ public class GeminiServiceTests
         service.SetApiKey("test-key");
 
         // Act
-        var result = await service.DetermineTargetAudienceAsync(
-                "movie",
-                "Test Movie",
-            2020,
-            null,
-            "PG",
-            new[] { "Action" });
+        var result = await service.DetermineTargetAudienceAsync(new AudienceRequest("movie", "Test Movie", 2020, null, "PG", new[] { "Action" }));
 
         // Assert - Returns null because we can't actually call the API
         Assert.Null(result);
@@ -194,13 +176,7 @@ public class GeminiServiceTests
         service.SetApiKey("test-key");
 
         // Act
-        var result = await service.DetermineTargetAudienceAsync(
-                "movie",
-                "Test Movie",
-            2020,
-            "A test movie",
-            null,
-            new[] { "Action" });
+        var result = await service.DetermineTargetAudienceAsync(new AudienceRequest("movie", "Test Movie", 2020, "A test movie", null, new[] { "Action" }));
 
         // Assert - Returns null because we can't actually call the API
         Assert.Null(result);
@@ -218,13 +194,7 @@ public class GeminiServiceTests
         service.SetApiKey("test-key");
 
         // Act
-        var result = await service.DetermineTargetAudienceAsync(
-                "movie",
-                "Test Movie",
-            2020,
-            "A test movie",
-            "PG",
-            null);
+        var result = await service.DetermineTargetAudienceAsync(new AudienceRequest("movie", "Test Movie", 2020, "A test movie", "PG", null));
 
         // Assert - Returns null because we can't actually call the API
         Assert.Null(result);

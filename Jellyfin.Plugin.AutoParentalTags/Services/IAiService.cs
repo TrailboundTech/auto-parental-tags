@@ -27,28 +27,11 @@ public interface IAiService : IDisposable
     void SetModelName(string modelName);
 
     /// <summary>
-    /// Analyzes movie or TV-series metadata to determine the target audience.
+    /// Determines the primary target audience for a movie or TV series.
     /// </summary>
-    /// <param name="mediaType">
-    /// Human-readable media type, such as movie or TV series.
-    /// </param>
-    /// <param name="title">The movie or TV-series title.</param>
-    /// <param name="year">The release or premiere year.</param>
-    /// <param name="overview">The item overview or synopsis.</param>
-    /// <param name="officialRating">
-    /// The official content rating, when available.
-    /// </param>
-    /// <param name="genres">The item's genres.</param>
-    /// <returns>
-    /// A task containing the target audience tag: kids, teens, or adults.
-    /// </returns>
-    Task<string?> DetermineTargetAudienceAsync(
-        string mediaType,
-        string title,
-        int? year,
-        string? overview,
-        string? officialRating,
-        string[]? genres);
+    /// <param name="request">Metadata describing the item.</param>
+    /// <returns>kids, teens, adults, or null when no classification was possible.</returns>
+    Task<string?> DetermineTargetAudienceAsync(AudienceRequest request);
 
     /// <summary>
     /// Gets a list of available models from the AI service.
